@@ -1,12 +1,8 @@
-import React from 'react';
 import {
-  BookOpen,
   CheckCircle2,
   Layers,
   ShieldCheck,
   Award,
-  GitBranch,
-  FileText,
   DollarSign,
   Users,
   Code2,

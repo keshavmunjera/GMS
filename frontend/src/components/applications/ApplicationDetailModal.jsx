@@ -1,22 +1,14 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   X,
-  Calendar,
-  DollarSign,
   Building,
-  User,
-  Mail,
-  Phone,
-  FileText,
-  Paperclip,
   CheckCircle2,
-  Clock,
+  DollarSign,
+  Paperclip,
+  FileText,
   Award,
-  AlertTriangle,
-  ArrowRight,
-  ShieldCheck,
-  ChevronRight
+  ShieldCheck
 } from 'lucide-react';
 
 export const ApplicationDetailModal = ({ application, onClose }) => {

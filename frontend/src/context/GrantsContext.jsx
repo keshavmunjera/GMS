@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect } from 'react';
 import {
   INITIAL_PROGRAMS,
   INITIAL_APPLICATIONS,
@@ -6,8 +6,9 @@ import {
   INITIAL_MILESTONE_REPORTS,
   INITIAL_AUDIT_LOGS
 } from '../data/mockData';
+import { api } from '../services/api';
 
-const GrantsContext = createContext();
+export const GrantsContext = createContext();
 
 const STORAGE_KEYS = {
   PROGRAMS: 'gms_programs_v1',
@@ -27,7 +28,10 @@ export const GrantsProvider = ({ children }) => {
   // 2. Active Tab: 'overview' | 'programs' | 'eligibility' | 'applications' | 'reviews' | 'disbursements' | 'docs'
   const [activeTab, setActiveTab] = useState('overview');
 
-  // 3. Data Collections
+  // 3. Backend connectivity status
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+
+  // 4. Data Collections
   const [programs, setPrograms] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PROGRAMS);
     return saved ? JSON.parse(saved) : INITIAL_PROGRAMS;
@@ -53,7 +57,7 @@ export const GrantsProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
   });
 
-  // 4. Modal and Selection States
+  // 5. Modal and Selection States
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
@@ -63,6 +67,48 @@ export const GrantsProvider = ({ children }) => {
   const [disbursementTarget, setDisbursementTarget] = useState(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // Fetch from backend on initial mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBackendData = async () => {
+      try {
+        const [progs, apps, disbs, miles, audits] = await Promise.all([
+          api.getPrograms(),
+          api.getApplications(),
+          api.getDisbursements(),
+          api.getMilestones(),
+          api.getAuditLogs()
+        ]);
+        if (isMounted) {
+          if (progs && progs.length > 0) setPrograms(progs);
+          if (apps && apps.length > 0) setApplications(apps);
+          if (disbs && disbs.length > 0) setDisbursements(disbs);
+          if (miles && miles.length > 0) setMilestones(miles);
+          if (audits && audits.length > 0) setAuditLogs(audits);
+          setIsBackendConnected(true);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setIsBackendConnected(false);
+        }
+      }
+    };
+    fetchBackendData();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Helper to refresh audit logs from backend if connected
+  const refreshAuditLogs = async () => {
+    if (isBackendConnected) {
+      try {
+        const latest = await api.getAuditLogs();
+        if (latest) setAuditLogs(latest);
+      } catch (e) {
+        // ignore
+      }
+    }
+  };
 
   // Sync to localStorage
   useEffect(() => {
@@ -102,7 +148,7 @@ export const GrantsProvider = ({ children }) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Audit logger helper
+  // Audit logger helper (local)
   const logAction = (action, details) => {
     const roleActors = {
       admin: 'Administrator (Hon. Director Marcus Sterling)',
@@ -122,7 +168,7 @@ export const GrantsProvider = ({ children }) => {
   };
 
   // Program Management (J18-E02)
-  const createProgram = (programData) => {
+  const createProgram = async (programData) => {
     const newId = 'prog-' + (programs.length + 1).toString().padStart(3, '0');
     const newProgram = {
       ...programData,
@@ -131,13 +177,38 @@ export const GrantsProvider = ({ children }) => {
       allocatedBudget: 0,
       status: programData.status || 'Open'
     };
+
+    if (isBackendConnected) {
+      try {
+        const created = await api.createProgram(newProgram, currentRole);
+        setPrograms((prev) => [created, ...prev]);
+        showToast(`Grant program "${created.title}" created successfully!`, 'success');
+        refreshAuditLogs();
+        return created;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
     setPrograms((prev) => [newProgram, ...prev]);
     logAction('Created Grant Program', `Created new grant program: ${newProgram.title} (${newProgram.code}) with pool of $${Number(newProgram.totalBudget).toLocaleString()}`);
     showToast(`Grant program "${newProgram.title}" created successfully!`, 'success');
     return newProgram;
   };
 
-  const updateProgram = (id, updates) => {
+  const updateProgram = async (id, updates) => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.updateProgram(id, updates, currentRole);
+        setPrograms((prev) => prev.map((p) => (p.id === id ? updated : p)));
+        showToast('Program updated successfully', 'success');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
     setPrograms((prev) =>
       prev.map((p) => {
         if (p.id === id) {
@@ -151,7 +222,19 @@ export const GrantsProvider = ({ children }) => {
     showToast('Program updated successfully', 'success');
   };
 
-  const deleteProgram = (id) => {
+  const deleteProgram = async (id) => {
+    if (isBackendConnected) {
+      try {
+        await api.deleteProgram(id, currentRole);
+        setPrograms((prev) => prev.filter((p) => p.id !== id));
+        showToast('Program deleted', 'info');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
     const target = programs.find((p) => p.id === id);
     setPrograms((prev) => prev.filter((p) => p.id !== id));
     if (target) {
@@ -161,7 +244,7 @@ export const GrantsProvider = ({ children }) => {
   };
 
   // Application Submission & Eligibility (J18-E03)
-  const submitApplication = (appData) => {
+  const submitApplication = async (appData) => {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const trackingNumber = `APP-2026-${randomNum}`;
     const newApp = {
@@ -174,6 +257,26 @@ export const GrantsProvider = ({ children }) => {
       score: null,
       reviews: []
     };
+
+    if (isBackendConnected) {
+      try {
+        const submitted = await api.submitApplication(newApp, currentRole);
+        setApplications((prev) => [submitted, ...prev]);
+        // Update program count
+        setPrograms((prev) =>
+          prev.map((prog) =>
+            prog.id === submitted.programId
+              ? { ...prog, applicantCount: (prog.applicantCount || 0) + 1 }
+              : prog
+          )
+        );
+        showToast(`Application ${submitted.trackingNumber} submitted successfully!`, 'success');
+        refreshAuditLogs();
+        return submitted;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
 
     setApplications((prev) => [newApp, ...prev]);
 
@@ -192,49 +295,80 @@ export const GrantsProvider = ({ children }) => {
   };
 
   // Review & Approval Workflow (J18-E04)
-  const submitReview = (appId, reviewData) => {
+  const submitReview = async (appId, reviewData) => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.submitReview(appId, reviewData, currentRole);
+        setApplications((prev) => prev.map((app) => (app.id === appId ? updated : app)));
+        showToast('Evaluation review submitted successfully!', 'success');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
+    const targetApp = applications.find((a) => a.id === appId);
     setApplications((prev) =>
       prev.map((app) => {
         if (app.id === appId) {
           const updatedReviews = [...(app.reviews || []), reviewData];
-          // Recalculate average score
           const totalScore = updatedReviews.reduce((sum, r) => sum + (r.scoreTotal || 0), 0);
           const avgScore = Math.round(totalScore / updatedReviews.length);
 
-          const updatedApp = {
+          return {
             ...app,
             reviews: updatedReviews,
             score: avgScore,
             status: 'In Review'
           };
-
-          logAction(
-            'Submitted Evaluation Review',
-            `Reviewer ${reviewData.reviewerName} scored Application ${app.trackingNumber}: ${reviewData.scoreTotal}/100. Recommendation: ${reviewData.recommendation}`
-          );
-
-          return updatedApp;
         }
         return app;
       })
     );
+
+    if (targetApp) {
+      logAction(
+        'Submitted Evaluation Review',
+        `Reviewer ${reviewData.reviewerName} scored Application ${targetApp.trackingNumber}: ${reviewData.scoreTotal}/100. Recommendation: ${reviewData.recommendation}`
+      );
+    }
     showToast('Evaluation review submitted successfully!', 'success');
   };
 
-  const advanceApplicationStage = (appId, nextStage, decisionNotes = '') => {
+  const advanceApplicationStage = async (appId, nextStage, decisionNotes = '') => {
+    const targetApp = applications.find((a) => a.id === appId);
+    if (!targetApp) return;
+
+    if (isBackendConnected) {
+      try {
+        const updated = await api.advanceStage(appId, nextStage, decisionNotes, currentRole);
+        setApplications((prev) => prev.map((app) => (app.id === appId ? updated : app)));
+
+        // If approved, sync disbursements and programs from backend
+        if (nextStage === 'Approved') {
+          const [latestDisbs, latestProgs] = await Promise.all([
+            api.getDisbursements(),
+            api.getPrograms()
+          ]);
+          if (latestDisbs) setDisbursements(latestDisbs);
+          if (latestProgs) setPrograms(latestProgs);
+        }
+
+        showToast(`Application transitioned to ${nextStage}`, 'success');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
+    const newStatus = nextStage === 'Approved' ? 'Approved' : nextStage === 'Rejected' ? 'Rejected' : 'In Review';
+
     setApplications((prev) =>
       prev.map((app) => {
         if (app.id === appId) {
-          let newStatus = app.status;
-          if (nextStage === 'Approved') {
-            newStatus = 'Approved';
-          } else if (nextStage === 'Rejected') {
-            newStatus = 'Rejected';
-          } else {
-            newStatus = 'In Review';
-          }
-
-          const updatedApp = {
+          return {
             ...app,
             stage: nextStage,
             status: newStatus,
@@ -252,101 +386,113 @@ export const GrantsProvider = ({ children }) => {
               signedBy: 'Hon. Director Marcus Sterling'
             } : app.committeeDecision
           };
-
-          // If approved, create default 3-tranche disbursement schedule automatically
-          if (nextStage === 'Approved' && !disbursements.some((d) => d.applicationId === app.id)) {
-            const amount = Number(app.requestedAmount);
-            const tranche1Amount = Math.round(amount * 0.4);
-            const tranche2Amount = Math.round(amount * 0.35);
-            const tranche3Amount = amount - tranche1Amount - tranche2Amount;
-
-            const newDisbursements = [
-              {
-                id: 'disb-' + Date.now() + '-1',
-                applicationId: app.id,
-                programId: app.programId,
-                trackingNumber: app.trackingNumber,
-                granteeOrg: app.applicantOrg,
-                projectTitle: app.projectTitle,
-                trancheNumber: 1,
-                totalTranches: 3,
-                percentage: 40,
-                amount: tranche1Amount,
-                milestoneRequirement: 'Initial Execution of Grant Agreement & Mobilization Plan',
-                scheduledDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-                disbursedDate: null,
-                status: 'Scheduled',
-                paymentMethod: 'Federal Wire ACH',
-                referenceCode: null,
-                notes: 'Tranche 1 Advance upon contract execution.'
-              },
-              {
-                id: 'disb-' + Date.now() + '-2',
-                applicationId: app.id,
-                programId: app.programId,
-                trackingNumber: app.trackingNumber,
-                granteeOrg: app.applicantOrg,
-                projectTitle: app.projectTitle,
-                trancheNumber: 2,
-                totalTranches: 3,
-                percentage: 35,
-                amount: tranche2Amount,
-                milestoneRequirement: 'Mid-term Deliverables Completion & Spend Verification',
-                scheduledDate: new Date(Date.now() + 120 * 86400000).toISOString().split('T')[0],
-                disbursedDate: null,
-                status: 'Scheduled',
-                paymentMethod: 'Federal Wire ACH',
-                referenceCode: null,
-                notes: 'Tranche 2 upon submission and approval of Midterm report.'
-              },
-              {
-                id: 'disb-' + Date.now() + '-3',
-                applicationId: app.id,
-                programId: app.programId,
-                trackingNumber: app.trackingNumber,
-                granteeOrg: app.applicantOrg,
-                projectTitle: app.projectTitle,
-                trancheNumber: 3,
-                totalTranches: 3,
-                percentage: 25,
-                amount: tranche3Amount,
-                milestoneRequirement: 'Final Project Closeout & Independent Financial Audit Signoff',
-                scheduledDate: new Date(Date.now() + 270 * 86400000).toISOString().split('T')[0],
-                disbursedDate: null,
-                status: 'Scheduled',
-                paymentMethod: 'Federal Wire ACH',
-                referenceCode: null,
-                notes: 'Final retention release.'
-              }
-            ];
-
-            setDisbursements((dPrev) => [...dPrev, ...newDisbursements]);
-
-            // Update program allocated budget
-            setPrograms((pPrev) =>
-              pPrev.map((p) =>
-                p.id === app.programId
-                  ? { ...p, allocatedBudget: (p.allocatedBudget || 0) + amount }
-                  : p
-              )
-            );
-          }
-
-          logAction(
-            'Stage Transition',
-            `Application ${app.trackingNumber} progressed to: ${nextStage}. Notes: ${decisionNotes || 'Stage advanced'}`
-          );
-
-          return updatedApp;
         }
         return app;
       })
     );
+
+    // If approved, create default 3-tranche disbursement schedule automatically
+    if (nextStage === 'Approved' && !disbursements.some((d) => d.applicationId === targetApp.id)) {
+      const amount = Number(targetApp.requestedAmount);
+      const tranche1Amount = Math.round(amount * 0.4);
+      const tranche2Amount = Math.round(amount * 0.35);
+      const tranche3Amount = amount - tranche1Amount - tranche2Amount;
+      const now = Date.now();
+
+      const newDisbursements = [
+        {
+          id: `disb-${now}-1`,
+          applicationId: targetApp.id,
+          programId: targetApp.programId,
+          trackingNumber: targetApp.trackingNumber,
+          granteeOrg: targetApp.applicantOrg,
+          projectTitle: targetApp.projectTitle,
+          trancheNumber: 1,
+          totalTranches: 3,
+          percentage: 40,
+          amount: tranche1Amount,
+          milestoneRequirement: 'Initial Execution of Grant Agreement & Mobilization Plan',
+          scheduledDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+          disbursedDate: null,
+          status: 'Scheduled',
+          paymentMethod: 'Federal Wire ACH',
+          referenceCode: null,
+          notes: 'Tranche 1 Advance upon contract execution.'
+        },
+        {
+          id: `disb-${now}-2`,
+          applicationId: targetApp.id,
+          programId: targetApp.programId,
+          trackingNumber: targetApp.trackingNumber,
+          granteeOrg: targetApp.applicantOrg,
+          projectTitle: targetApp.projectTitle,
+          trancheNumber: 2,
+          totalTranches: 3,
+          percentage: 35,
+          amount: tranche2Amount,
+          milestoneRequirement: 'Mid-term Deliverables Completion & Spend Verification',
+          scheduledDate: new Date(Date.now() + 120 * 86400000).toISOString().split('T')[0],
+          disbursedDate: null,
+          status: 'Scheduled',
+          paymentMethod: 'Federal Wire ACH',
+          referenceCode: null,
+          notes: 'Tranche 2 upon submission and approval of Midterm report.'
+        },
+        {
+          id: `disb-${now}-3`,
+          applicationId: targetApp.id,
+          programId: targetApp.programId,
+          trackingNumber: targetApp.trackingNumber,
+          granteeOrg: targetApp.applicantOrg,
+          projectTitle: targetApp.projectTitle,
+          trancheNumber: 3,
+          totalTranches: 3,
+          percentage: 25,
+          amount: tranche3Amount,
+          milestoneRequirement: 'Final Project Closeout & Independent Financial Audit Signoff',
+          scheduledDate: new Date(Date.now() + 270 * 86400000).toISOString().split('T')[0],
+          disbursedDate: null,
+          status: 'Scheduled',
+          paymentMethod: 'Federal Wire ACH',
+          referenceCode: null,
+          notes: 'Final retention release.'
+        }
+      ];
+
+      setDisbursements((dPrev) => [...dPrev, ...newDisbursements]);
+
+      // Update program allocated budget
+      setPrograms((pPrev) =>
+        pPrev.map((p) =>
+          p.id === targetApp.programId
+            ? { ...p, allocatedBudget: (p.allocatedBudget || 0) + amount }
+            : p
+        )
+      );
+    }
+
+    logAction(
+      'Stage Transition',
+      `Application ${targetApp.trackingNumber} progressed to: ${nextStage}. Notes: ${decisionNotes || 'Stage advanced'}`
+    );
+
     showToast(`Application transitioned to ${nextStage}`, 'success');
   };
 
   // Grant Disbursement & Reporting (J18-E05)
-  const processDisbursement = (disbursementId, paymentDetails) => {
+  const processDisbursement = async (disbursementId, paymentDetails) => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.processDisbursement(disbursementId, paymentDetails, currentRole);
+        setDisbursements((prev) => prev.map((d) => (d.id === disbursementId ? updated : d)));
+        showToast('Disbursement executed and payment receipt issued!', 'success');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
     setDisbursements((prev) =>
       prev.map((d) => {
         if (d.id === disbursementId) {
@@ -372,7 +518,7 @@ export const GrantsProvider = ({ children }) => {
     showToast('Disbursement executed and payment receipt issued!', 'success');
   };
 
-  const submitMilestoneReport = (reportData) => {
+  const submitMilestoneReport = async (reportData) => {
     const newReport = {
       ...reportData,
       id: 'milestone-' + Date.now(),
@@ -381,6 +527,18 @@ export const GrantsProvider = ({ children }) => {
       approvedAt: null,
       reviewerNotes: null
     };
+
+    if (isBackendConnected) {
+      try {
+        const submitted = await api.submitMilestone(newReport, currentRole);
+        setMilestones((prev) => [submitted, ...prev]);
+        showToast('Milestone report submitted for review', 'success');
+        refreshAuditLogs();
+        return submitted;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
 
     setMilestones((prev) => [newReport, ...prev]);
 
@@ -391,7 +549,19 @@ export const GrantsProvider = ({ children }) => {
     showToast('Milestone report submitted for review', 'success');
   };
 
-  const approveMilestoneReport = (reportId, notes = '') => {
+  const approveMilestoneReport = async (reportId, notes = '') => {
+    if (isBackendConnected) {
+      try {
+        const updated = await api.approveMilestone(reportId, notes, currentRole);
+        setMilestones((prev) => prev.map((m) => (m.id === reportId ? updated : m)));
+        showToast('Milestone report approved! Tranche eligible for payment.', 'success');
+        refreshAuditLogs();
+        return;
+      } catch (err) {
+        console.warn('Backend call failed, using local state:', err);
+      }
+    }
+
     setMilestones((prev) =>
       prev.map((m) => {
         if (m.id === reportId) {
@@ -412,12 +582,32 @@ export const GrantsProvider = ({ children }) => {
   };
 
   // Reset to initial mock data
-  const resetToMockData = () => {
-    setPrograms(INITIAL_PROGRAMS);
-    setApplications(INITIAL_APPLICATIONS);
-    setDisbursements(INITIAL_DISBURSEMENTS);
-    setMilestones(INITIAL_MILESTONE_REPORTS);
-    setAuditLogs(INITIAL_AUDIT_LOGS);
+  const resetToMockData = async () => {
+    if (isBackendConnected) {
+      try {
+        await api.resetSystemData();
+        const [progs, apps, disbs, miles, audits] = await Promise.all([
+          api.getPrograms(),
+          api.getApplications(),
+          api.getDisbursements(),
+          api.getMilestones(),
+          api.getAuditLogs()
+        ]);
+        if (progs) setPrograms(progs);
+        if (apps) setApplications(apps);
+        if (disbs) setDisbursements(disbs);
+        if (miles) setMilestones(miles);
+        if (audits) setAuditLogs(audits);
+      } catch (err) {
+        console.warn('Backend reset failed, resetting local:', err);
+      }
+    } else {
+      setPrograms(INITIAL_PROGRAMS);
+      setApplications(INITIAL_APPLICATIONS);
+      setDisbursements(INITIAL_DISBURSEMENTS);
+      setMilestones(INITIAL_MILESTONE_REPORTS);
+      setAuditLogs(INITIAL_AUDIT_LOGS);
+    }
     localStorage.removeItem(STORAGE_KEYS.PROGRAMS);
     localStorage.removeItem(STORAGE_KEYS.APPLICATIONS);
     localStorage.removeItem(STORAGE_KEYS.DISBURSEMENTS);
@@ -439,6 +629,7 @@ export const GrantsProvider = ({ children }) => {
         setCurrentRole,
         activeTab,
         setActiveTab,
+        isBackendConnected,
         programs,
         applications,
         disbursements,
@@ -481,10 +672,4 @@ export const GrantsProvider = ({ children }) => {
   );
 };
 
-export const useGrants = () => {
-  const context = useContext(GrantsContext);
-  if (!context) {
-    throw new Error('useGrants must be used within a GrantsProvider');
-  }
-  return context;
-};
+export { useGrants } from './useGrants';

@@ -1,30 +1,18 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   FileCheck2,
   Award,
   CheckCircle2,
-  AlertTriangle,
   Scale,
-  Send,
-  Building,
-  DollarSign,
-  Clock,
-  Paperclip,
-  Check,
-  ChevronRight,
-  ShieldCheck,
-  Sparkles
+  Paperclip
 } from 'lucide-react';
 
 export const ReviewWorkflow = () => {
   const {
     applications,
-    programs,
     submitReview,
-    advanceApplicationStage,
-    currentRole,
-    setSelectedApplication
+    advanceApplicationStage
   } = useGrants();
 
   // Review candidates (applications in screening, technical review, or committee)
@@ -37,7 +25,6 @@ export const ReviewWorkflow = () => {
   );
 
   const activeApp = applications.find((a) => a.id === selectedAppId) || pendingApps[0] || applications[0];
-  const activeProgram = programs.find((p) => p.id === activeApp?.programId);
 
   // Scoring rubric form state
   const [rubricScores, setRubricScores] = useState({
@@ -175,7 +162,7 @@ export const ReviewWorkflow = () => {
                   <div className="flex justify-between items-center text-[11px] text-slate-500 mt-1">
                     <span className="truncate max-w-[120px]">{app.applicantOrg}</span>
                     <span className="font-mono font-semibold text-slate-800">
-                      ${(app.requestedAmount / 1000).toFixed(0)}K
+                      ${(Number(app.requestedAmount || 0) / 1000).toFixed(0)}K
                     </span>
                   </div>
                 </div>
@@ -208,7 +195,7 @@ export const ReviewWorkflow = () => {
 
               <div className="text-right">
                 <div className="text-base font-bold font-mono text-emerald-600">
-                  ${(activeApp.requestedAmount).toLocaleString()}
+                  ${Number(activeApp.requestedAmount || 0).toLocaleString()}
                 </div>
                 <div className="text-[10px] text-slate-400">
                   +${(activeApp.matchingFunds || 0).toLocaleString()} match ({activeApp.matchingPercent || 0}%)

@@ -1,20 +1,14 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
-  DollarSign,
-  TrendingUp,
-  Clock,
   CheckCircle2,
-  AlertCircle,
-  FileText,
   CreditCard,
-  Send,
   Plus,
   X,
-  FileCheck,
-  Building,
-  ArrowUpRight
+  FileCheck
 } from 'lucide-react';
+
+const generateACHReferenceCode = () => `FED-ACH-2026-${Math.floor(100000 + Math.random() * 900000)}`;
 
 export const DisbursementManager = () => {
   const {
@@ -59,7 +53,7 @@ export const DisbursementManager = () => {
     setSelectedDisb(disb);
     setPaymentForm({
       paymentMethod: disb.paymentMethod || 'Federal Wire ACH',
-      referenceCode: `FED-ACH-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+      referenceCode: generateACHReferenceCode(),
       notes: disb.notes || 'Tranche payment released.'
     });
   };

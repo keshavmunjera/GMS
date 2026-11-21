@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
-import { X, Plus, Trash2, FolderPlus, DollarSign, Calendar, Layers, ShieldCheck } from 'lucide-react';
+import { X, Trash2, FolderPlus, DollarSign, ShieldCheck } from 'lucide-react';
 
 export const CreateProgramModal = () => {
   const { isCreateProgramOpen, setIsCreateProgramOpen, createProgram } = useGrants();

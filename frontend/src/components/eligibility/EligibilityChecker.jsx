@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   CheckSquare,
@@ -6,12 +6,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   ArrowRight,
-  Sparkles,
-  Building2,
-  Calendar,
-  DollarSign,
   AlertTriangle
 } from 'lucide-react';
 
@@ -28,8 +23,9 @@ export const EligibilityChecker = () => {
     hasAuditedFinancials: true
   });
 
-  const selectedProgram = programs.find((p) => p.id === selectedProgramId) || programs[0];
+  const selectedProgram = programs.find((p) => p.id === selectedProgramId) || programs[0] || {};
   const criteria = selectedProgram?.eligibilityCriteria || {};
+  const minYears = criteria.minYearsOperational ?? 1;
 
   // Compute criteria checks
   const checks = [
@@ -46,12 +42,12 @@ export const EligibilityChecker = () => {
     {
       id: 'years',
       label: 'Minimum Operational History',
-      required: `${criteria.minYearsOperational || 1} year(s) active registration`,
+      required: `${minYears} year(s) active registration`,
       provided: `${answers.yearsOperational} years`,
-      passed: answers.yearsOperational >= (criteria.minYearsOperational || 1),
-      explanation: answers.yearsOperational >= (criteria.minYearsOperational || 1)
-        ? `Organization exceeds the minimum operational threshold of ${criteria.minYearsOperational} years.`
-        : `Applicant organization has only been active for ${answers.yearsOperational} years; minimum required is ${criteria.minYearsOperational} years.`
+      passed: answers.yearsOperational >= minYears,
+      explanation: answers.yearsOperational >= minYears
+        ? `Organization exceeds the minimum operational threshold of ${minYears} years.`
+        : `Applicant organization has only been active for ${answers.yearsOperational} years; minimum required is ${minYears} years.`
     },
     {
       id: 'matching',
@@ -281,7 +277,7 @@ export const EligibilityChecker = () => {
 
             <p className="text-xs mt-3 leading-relaxed opacity-90">
               {isFullyEligible
-                ? `Congratulations! Your organization profile matches all statutory and administrative eligibility standards established for ${selectedProgram.title}.`
+                ? `Congratulations! Your organization profile matches all statutory and administrative eligibility standards established for ${selectedProgram?.title || 'this grant scheme'}.`
                 : isPartiallyEligible
                 ? 'Your organization satisfies most core criteria, but requires adjustments in matching funds, operational seniority, or documentation.'
                 : 'Your profile does not satisfy one or more mandatory eligibility disqualifiers for this scheme.'}
@@ -309,7 +305,7 @@ export const EligibilityChecker = () => {
             <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
               <span>Detailed Eligibility Audit Trail</span>
               <span className="text-xs font-normal text-slate-500">
-                Scheme: {selectedProgram.code}
+                Scheme: {selectedProgram?.code || 'N/A'}
               </span>
             </h3>
 

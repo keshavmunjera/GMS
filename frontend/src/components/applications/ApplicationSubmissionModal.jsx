@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   X,
   CheckCircle,
-  FileText,
-  DollarSign,
   UploadCloud,
-  ShieldCheck,
   ArrowRight,
   ArrowLeft,
   Trash2,
@@ -63,29 +60,10 @@ export const ApplicationSubmissionModal = () => {
   ]);
   const [newFileName, setNewFileName] = useState('');
 
-  // Handle prefilled program if any
-  useEffect(() => {
-    if (prefilledProgramForApp) {
-      setFormData((prev) => ({
-        ...prev,
-        programId: prefilledProgramForApp.id,
-        programTitle: prefilledProgramForApp.title,
-        programCode: prefilledProgramForApp.code
-      }));
-    } else if (programs.length > 0 && !formData.programId) {
-      const defaultProg = programs.find((p) => p.status === 'Open') || programs[0];
-      setFormData((prev) => ({
-        ...prev,
-        programId: defaultProg.id,
-        programTitle: defaultProg.title,
-        programCode: defaultProg.code
-      }));
-    }
-  }, [prefilledProgramForApp, programs]);
-
   if (!isSubmitAppOpen) return null;
 
-  const currentProgram = programs.find((p) => p.id === formData.programId) || programs[0];
+  const activeProgramId = formData.programId || prefilledProgramForApp?.id || (programs.find((p) => p.status === 'Open') || programs[0])?.id || '';
+  const currentProgram = programs.find((p) => p.id === activeProgramId) || programs[0] || {};
 
   // Budget calculations
   const totalRequested = formData.budgetItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -269,7 +247,7 @@ export const ApplicationSubmissionModal = () => {
                   Target Grant Scheme *
                 </label>
                 <select
-                  value={formData.programId}
+                  value={activeProgramId}
                   onChange={(e) => {
                     const chosen = programs.find((p) => p.id === e.target.value);
                     setFormData({
@@ -282,7 +260,7 @@ export const ApplicationSubmissionModal = () => {
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium"
                 >
                   {programs
-                    .filter((p) => p.status === 'Open' || p.id === formData.programId)
+                    .filter((p) => p.status === 'Open' || p.id === activeProgramId)
                     .map((p) => (
                       <option key={p.id} value={p.id}>
                         [{p.code}] {p.title} (Max: ${(p.maxAward).toLocaleString()})

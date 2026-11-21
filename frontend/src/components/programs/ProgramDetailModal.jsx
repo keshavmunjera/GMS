@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   X,
   Calendar,
-  DollarSign,
   FileText,
-  Award,
   CheckCircle2,
-  AlertCircle,
-  Users,
   Building,
   Scale,
   ArrowRight,
@@ -16,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export const ProgramDetailModal = ({ program, onClose, onApply }) => {
-  const { applications, setActiveTab, setSelectedApplication } = useGrants();
+  const { applications, setSelectedApplication } = useGrants();
   const [activeTab, setModalTab] = useState('overview'); // 'overview' | 'eligibility' | 'rubric' | 'applications'
 
   const relatedApplications = applications.filter((a) => a.programId === program.id);

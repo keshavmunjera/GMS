@@ -1,4 +1,3 @@
-import React from 'react';
 import { useGrants } from '../context/GrantsContext';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 

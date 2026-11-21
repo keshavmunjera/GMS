@@ -1,16 +1,10 @@
-import React from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
   DollarSign,
-  Briefcase,
-  Users,
   Award,
   TrendingUp,
-  Clock,
   ArrowUpRight,
   ShieldCheck,
-  CheckCircle,
-  AlertTriangle,
   FolderPlus,
   FileSpreadsheet,
   CheckSquare,
@@ -128,13 +122,13 @@ export const DashboardOverview = () => {
           <div className="mt-3 text-[11px] text-slate-500 flex items-center justify-between">
             <span>Allocated: ${(totalAllocated / 1000000).toFixed(2)}M</span>
             <span className="font-semibold text-slate-700">
-              {Math.round((totalAllocated / totalPool) * 100)}% utilized
+              {totalPool > 0 ? Math.round((totalAllocated / totalPool) * 100) : 0}% utilized
             </span>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
             <div
               className="bg-indigo-600 h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, (totalAllocated / totalPool) * 100)}%` }}
+              style={{ width: `${totalPool > 0 ? Math.min(100, (totalAllocated / totalPool) * 100) : 0}%` }}
             ></div>
           </div>
         </div>

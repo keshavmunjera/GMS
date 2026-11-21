@@ -1,4 +1,3 @@
-import React from 'react';
 import { useGrants } from '../context/GrantsContext';
 import {
   LayoutDashboard,
@@ -8,10 +7,7 @@ import {
   FileCheck2,
   DollarSign,
   BookOpen,
-  Award,
-  ChevronRight,
-  Shield,
-  HelpCircle
+  Shield
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -21,8 +17,7 @@ export const Sidebar = () => {
     currentRole,
     programs,
     applications,
-    disbursements,
-    milestones
+    disbursements
   } = useGrants();
 
   const navItems = [

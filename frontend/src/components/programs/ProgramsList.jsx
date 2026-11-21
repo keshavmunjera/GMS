@@ -1,20 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
-  FolderKanban,
   Search,
   Filter,
   Plus,
   Calendar,
-  DollarSign,
   Users,
-  Award,
-  ArrowRight,
-  CheckCircle,
-  FileText,
-  Clock,
-  Sparkles,
-  Layers
+  ArrowRight
 } from 'lucide-react';
 import { ProgramDetailModal } from './ProgramDetailModal';
 import { CreateProgramModal } from './CreateProgramModal';
@@ -26,7 +18,6 @@ export const ProgramsList = () => {
     setIsCreateProgramOpen,
     setSelectedProgram,
     selectedProgram,
-    setActiveTab,
     startApplicationForProgram
   } = useGrants();
 

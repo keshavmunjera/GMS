@@ -1,20 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGrants } from '../../context/GrantsContext';
 import {
-  FileText,
   Search,
   Filter,
-  Plus,
-  Eye,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  Award,
-  Layers,
-  ArrowRight,
-  TrendingUp,
-  SlidersHorizontal,
-  ChevronRight
+  Plus
 } from 'lucide-react';
 import { ApplicationSubmissionModal } from './ApplicationSubmissionModal';
 import { ApplicationDetailModal } from './ApplicationDetailModal';
@@ -22,11 +11,9 @@ import { ApplicationDetailModal } from './ApplicationDetailModal';
 export const ApplicationsList = () => {
   const {
     applications,
-    currentRole,
     setIsSubmitAppOpen,
     selectedApplication,
-    setSelectedApplication,
-    advanceApplicationStage
+    setSelectedApplication
   } = useGrants();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -307,7 +294,7 @@ export const ApplicationsList = () => {
       {/* Application Detail Modal */}
       {selectedApplication && (
         <ApplicationDetailModal
-          application={selectedApplication}
+          application={applications.find((a) => a.id === selectedApplication.id) || selectedApplication}
           onClose={() => setSelectedApplication(null)}
         />
       )}

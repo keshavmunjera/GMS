@@ -1,17 +1,8 @@
-import React from 'react';
 import { useGrants } from '../context/GrantsContext';
 import {
-  ShieldCheck,
-  User,
   RotateCcw,
   BookOpen,
-  Award,
-  Bell,
-  Search,
-  CheckCircle2,
-  Briefcase,
-  Layers,
-  DollarSign
+  Award
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -20,11 +11,11 @@ export const Navbar = () => {
     setCurrentRole,
     programs,
     applications,
-    disbursements,
     resetToMockData,
     setActiveTab,
     setIsSubmitAppOpen,
-    setIsCreateProgramOpen
+    setIsCreateProgramOpen,
+    isBackendConnected
   } = useGrants();
 
   const roleDefinitions = [
@@ -79,6 +70,17 @@ export const Navbar = () => {
                 <span className="text-[11px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
                   J18-GMS v1.0
                 </span>
+                {isBackendConnected ? (
+                  <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center space-x-1" title="Connected to Spring Boot & MySQL">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>API Connected</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 flex items-center space-x-1" title="Operating with browser local storage">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    <span>Local Mode</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
                 Grants Lifecycle & Disbursement Management System
